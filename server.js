@@ -9,7 +9,7 @@ db.run(`ALTER TABLE users ADD COLUMN company TEXT`, () => {});
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const { sendNewTicketEmail } = require("./mailer");
+const { sendNewTicketEmail, sendTicketUpdateToCustomer } = require("./mailer");
 
 const app = express();
 
@@ -28,6 +28,12 @@ if (!JWT_SECRET) {
 
 const REQUEST_TYPES = ["Falla", "Solicitud"];
 const SERVICES = ["Laptop", "PC", "Página Web"];
+const STATUS_OPTIONS = ["Nuevo", "En progreso", "En espera", "Resuelto", "Cerrado"];
+
+const ADMIN_ACCOUNTS = [
+  { full_name: "Carlos_Ordaz", email: "carlos.ordaz@admin.local" },
+  { full_name: "Brandon_Vargas", email: "brandon.vargas@admin.local" },
+];
 
 function nowISO() {
   return new Date().toISOString();
@@ -40,6 +46,7 @@ function signToken(user) {
       email: user.email,
       full_name: user.full_name,
       company: user.company || null,
+      role: user.role || "user",
     },
     JWT_SECRET,
     { expiresIn: "7d" }
@@ -66,6 +73,46 @@ function guestOnly(req, res, next) {
   } catch {
     return next();
   }
+}
+
+function adminRequired(req, res, next) {
+  if (req.user?.role !== "admin") return res.status(403).send("Acceso denegado.");
+  return next();
+}
+
+async function ensureAdminUsers() {
+  const password_hash = await bcrypt.hash("1234", 12);
+
+  await Promise.all(
+    ADMIN_ACCOUNTS.map(
+      (admin) =>
+        new Promise((resolve) => {
+          db.get(
+            `SELECT id FROM users WHERE role = 'admin' AND full_name = ?`,
+            [admin.full_name],
+            (err, row) => {
+              if (err) {
+                console.error("Error buscando admin:", err.message);
+                return resolve();
+              }
+              if (row?.id) return resolve();
+
+              db.run(
+                `INSERT INTO users (full_name, company, email, password_hash, role, created_at)
+                 VALUES (?, ?, ?, ?, 'admin', ?)`,
+                [admin.full_name, null, admin.email, password_hash, nowISO()],
+                (err2) => {
+                  if (err2) {
+                    console.error("Error creando admin:", err2.message);
+                  }
+                  resolve();
+                }
+              );
+            }
+          );
+        })
+    )
+  );
 }
 
 app.get("/", (req, res) => res.redirect("/dashboard"));
@@ -108,6 +155,7 @@ app.post("/register", guestOnly, async (req, res) => {
         full_name: full_name.trim(),
         email: email.trim().toLowerCase(),
         company: company?.trim() ? company.trim() : null,
+        role: "user",
       };
 
       const token = signToken(user);
@@ -122,20 +170,30 @@ app.get("/login", guestOnly, (req, res) => {
 });
 
 app.post("/login", guestOnly, (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password) return res.render("login", { error: "Completa todos los campos." });
+  const { identifier, password } = req.body || {};
+  if (!identifier || !password) {
+    return res.render("login", { error: "Completa todos los campos." });
+  }
 
-  db.get(`SELECT * FROM users WHERE email = ?`, [email.trim().toLowerCase()], async (err, user) => {
-    if (err) return res.render("login", { error: "Error en login." });
-    if (!user) return res.render("login", { error: "Usuario o contraseña incorrectos." });
+  const trimmed = identifier.trim();
+  const email = trimmed.toLowerCase();
+  const username = trimmed;
 
-    const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) return res.render("login", { error: "Usuario o contraseña incorrectos." });
+  db.get(
+    `SELECT * FROM users WHERE email = ? OR (role = 'admin' AND LOWER(full_name) = LOWER(?))`,
+    [email, username],
+    async (err, user) => {
+      if (err) return res.render("login", { error: "Error en login." });
+      if (!user) return res.render("login", { error: "Usuario o contraseña incorrectos." });
 
-    const token = signToken(user);
-    res.cookie("auth", token, { httpOnly: true, sameSite: "lax" });
-    res.redirect("/dashboard");
-  });
+      const ok = await bcrypt.compare(password, user.password_hash);
+      if (!ok) return res.render("login", { error: "Usuario o contraseña incorrectos." });
+
+      const token = signToken(user);
+      res.cookie("auth", token, { httpOnly: true, sameSite: "lax" });
+      res.redirect("/dashboard");
+    }
+  );
 });
 
 app.post("/logout", (req, res) => {
@@ -145,6 +203,7 @@ app.post("/logout", (req, res) => {
 
 // --------- Tickets ---------
 app.get("/dashboard", authRequired, (req, res) => {
+  if (req.user.role === "admin") return res.redirect("/admin");
   db.all(
     `SELECT ticket_no, company, request_type, service, status, created_at, updated_at
      FROM tickets
@@ -154,6 +213,21 @@ app.get("/dashboard", authRequired, (req, res) => {
     (err, tickets) => {
       if (err) return res.status(500).send("Error cargando dashboard.");
       res.render("dashboard", { user: req.user, tickets: tickets || [] });
+    }
+  );
+});
+
+app.get("/admin", authRequired, adminRequired, (req, res) => {
+  db.all(
+    `SELECT t.ticket_no, t.company, t.request_type, t.service, t.status, t.created_at,
+            u.full_name AS user_name, u.email AS user_email
+     FROM tickets t
+     JOIN users u ON t.user_id = u.id
+     ORDER BY t.created_at DESC`,
+    [],
+    (err, tickets) => {
+      if (err) return res.status(500).send("Error cargando administración.");
+      res.render("admin_dashboard", { user: req.user, tickets: tickets || [] });
     }
   );
 });
@@ -249,17 +323,137 @@ app.post("/tickets", authRequired, (req, res) => {
 
 app.get("/tickets/:ticketNo", authRequired, (req, res) => {
   const { ticketNo } = req.params;
-  db.get(
-    `SELECT ticket_no, company, request_type, service, description, status, created_at, updated_at
-     FROM tickets
-     WHERE ticket_no = ? AND user_id = ?`,
-    [ticketNo, req.user.id],
-    (err, ticket) => {
-      if (err) return res.status(500).send("Error leyendo ticket.");
-      if (!ticket) return res.status(404).send("Ticket no encontrado.");
-      res.render("ticket_view", { user: req.user, ticket });
+  const isAdmin = req.user.role === "admin";
+  const baseQuery = isAdmin
+    ? `SELECT t.ticket_no, t.company, t.request_type, t.service, t.description, t.status,
+              t.created_at, t.updated_at, u.full_name AS user_name, u.email AS user_email
+       FROM tickets t
+       JOIN users u ON t.user_id = u.id
+       WHERE t.ticket_no = ?`
+    : `SELECT ticket_no, company, request_type, service, description, status, created_at, updated_at
+       FROM tickets
+       WHERE ticket_no = ? AND user_id = ?`;
+  const params = isAdmin ? [ticketNo] : [ticketNo, req.user.id];
+
+  db.get(baseQuery, params, (err, ticket) => {
+    if (err) return res.status(500).send("Error leyendo ticket.");
+    if (!ticket) return res.status(404).send("Ticket no encontrado.");
+
+    const messagesQuery = isAdmin
+      ? `SELECT author_type, author_name, body, is_internal, created_at
+         FROM ticket_messages
+         WHERE ticket_no = ?
+         ORDER BY created_at ASC`
+      : `SELECT author_type, author_name, body, is_internal, created_at
+         FROM ticket_messages
+         WHERE ticket_no = ? AND is_internal = 0
+         ORDER BY created_at ASC`;
+
+    db.all(messagesQuery, [ticketNo], (err2, messages) => {
+      if (err2) return res.status(500).send("Error leyendo mensajes.");
+      res.render("ticket_view", {
+        user: req.user,
+        ticket,
+        messages: messages || [],
+        statusOptions: STATUS_OPTIONS,
+        isAdmin,
+      });
+    });
+  });
+});
+
+app.post("/tickets/:ticketNo/status", authRequired, adminRequired, (req, res) => {
+  const { ticketNo } = req.params;
+  const { status } = req.body || {};
+  if (!STATUS_OPTIONS.includes(status)) {
+    return res.status(400).send("Estado inválido.");
+  }
+
+  db.run(
+    `UPDATE tickets SET status = ?, updated_at = ? WHERE ticket_no = ?`,
+    [status, nowISO(), ticketNo],
+    (err) => {
+      if (err) return res.status(500).send("Error actualizando estado.");
+      res.redirect(`/tickets/${ticketNo}`);
     }
   );
 });
 
-app.listen(PORT, () => console.log(`✅ http://localhost:${PORT}`));
+app.post("/tickets/:ticketNo/messages", authRequired, (req, res) => {
+  const { ticketNo } = req.params;
+  const { body, send_email, internal_note } = req.body || {};
+  if (!body || !body.trim()) {
+    return res.status(400).send("El mensaje no puede ir vacío.");
+  }
+
+  const isAdmin = req.user.role === "admin";
+  const authorType = isAdmin ? "admin" : "client";
+  const authorName = req.user.full_name;
+  const isInternal = isAdmin && internal_note === "on" ? 1 : 0;
+
+  const ticketQuery = isAdmin
+    ? `SELECT t.ticket_no, t.user_id, u.email AS user_email
+       FROM tickets t
+       JOIN users u ON t.user_id = u.id
+       WHERE t.ticket_no = ?`
+    : `SELECT ticket_no, user_id, NULL AS user_email
+       FROM tickets
+       WHERE ticket_no = ? AND user_id = ?`;
+  const params = isAdmin ? [ticketNo] : [ticketNo, req.user.id];
+
+  db.get(ticketQuery, params, (err, ticket) => {
+    if (err) return res.status(500).send("Error leyendo ticket.");
+    if (!ticket) return res.status(404).send("Ticket no encontrado.");
+
+    db.run(
+      `INSERT INTO ticket_messages (ticket_no, author_type, author_name, body, is_internal, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [ticketNo, authorType, authorName, body.trim(), isInternal, nowISO()],
+      async (err2) => {
+        if (err2) return res.status(500).send("Error guardando mensaje.");
+
+        db.run(
+          `UPDATE tickets SET updated_at = ? WHERE ticket_no = ?`,
+          [nowISO(), ticketNo],
+          async (err3) => {
+            if (err3) return res.status(500).send("Error actualizando ticket.");
+
+            if (isAdmin && send_email === "on" && !isInternal && ticket.user_email) {
+              try {
+                await sendTicketUpdateToCustomer({
+                  to: ticket.user_email,
+                  ticket_no: ticketNo,
+                  message: body.trim(),
+                });
+              } catch (e) {
+                console.error("No se pudo enviar correo:", e.message);
+              }
+            }
+
+            res.redirect(`/tickets/${ticketNo}`);
+          }
+        );
+      }
+    );
+  });
+});
+
+app.post("/tickets/:ticketNo/delete", authRequired, adminRequired, (req, res) => {
+  const { ticketNo } = req.params;
+  db.serialize(() => {
+    db.run(`DELETE FROM ticket_messages WHERE ticket_no = ?`, [ticketNo]);
+    db.run(`DELETE FROM tickets WHERE ticket_no = ?`, [ticketNo], (err) => {
+      if (err) return res.status(500).send("Error eliminando ticket.");
+      res.redirect("/admin");
+    });
+  });
+});
+
+ensureAdminUsers()
+  .then(() => {
+    app.listen(PORT, () => console.log(`✅ http://localhost:${PORT}`));
+  })
+  .catch((err) => {
+    console.error("Error inicializando admins:", err.message);
+    app.listen(PORT, () => console.log(`✅ http://localhost:${PORT}`));
+  });

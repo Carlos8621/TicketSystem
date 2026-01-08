@@ -1,0 +1,50 @@
+<%
+  const topbarRight = `
+    <form method="POST" action="/logout" style="margin:0">
+      <button class="btn btn-secondary" type="submit">Cerrar sesión</button>
+    </form>
+  `;
+%>
+
+<%- include("layout_start", { title: "Panel admin", topbarRight }) %>
+
+<div class="card">
+  <h2 style="margin:0 0 6px 0">Panel de administración</h2>
+  <small>Admin: <b><%= user.full_name %></b></small>
+</div>
+
+<div class="card">
+  <% if (!tickets || tickets.length === 0) { %>
+    <p>No hay tickets aún.</p>
+  <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Ticket</th>
+          <th>Cliente</th>
+          <th>Servicio</th>
+          <th>Tipo</th>
+          <th>Status</th>
+          <th>Creado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% tickets.forEach(t => { %>
+          <tr>
+            <td><a href="/tickets/<%= t.ticket_no %>"><b><%= t.ticket_no %></b></a></td>
+            <td>
+              <div><b><%= t.user_name %></b></div>
+              <small><%= t.user_email %></small>
+            </td>
+            <td><%= t.service %></td>
+            <td><%= t.request_type %></td>
+            <td><span class="pill"><%= t.status %></span></td>
+            <td><small><%= t.created_at %></small></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<%- include("layout_end") %>

@@ -1,6 +1,6 @@
 <%
   const topbarRight = `
-    <a class="btn btn-secondary" href="/dashboard">Volver</a>
+    <a class="btn btn-secondary" href="${isAdmin ? "/admin" : "/dashboard"}">Volver</a>
   `;
 %>
 
@@ -14,6 +14,11 @@
       <small>Empresa: <b><%= ticket.company || "-" %></b></small><br/>
       <small>Tipo: <b><%= ticket.request_type %></b></small><br/>
       <small>Servicio: <b><%= ticket.service %></b></small>
+      <% if (isAdmin) { %>
+        <br/>
+        <small>Cliente: <b><%= ticket.user_name %></b></small><br/>
+        <small>Correo: <b><%= ticket.user_email %></b></small>
+      <% } %>
     </div>
     <div>
       <span class="pill"><%= ticket.status %></span><br/>
@@ -27,5 +32,73 @@
   <h3 style="margin-top:0">Descripción</h3>
   <p style="white-space:pre-wrap"><%= ticket.description %></p>
 </div>
+
+<div class="card">
+  <h3 style="margin-top:0">Seguimiento</h3>
+  <% if (!messages || messages.length === 0) { %>
+    <p>No hay mensajes aún.</p>
+  <% } else { %>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <% messages.forEach(m => { %>
+        <div style="padding:12px; border:1px solid rgba(255,255,255,.10); border-radius:12px;">
+          <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+            <strong><%= m.author_name %></strong>
+            <small><%= m.created_at %></small>
+          </div>
+          <% if (m.is_internal) { %>
+            <small class="pill">Nota interna</small>
+          <% } %>
+          <p style="white-space:pre-wrap; margin:8px 0 0 0;"><%= m.body %></p>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Agregar actualización</h3>
+  <form method="POST" action="/tickets/<%= ticket.ticket_no %>/messages">
+    <label>Mensaje</label>
+    <textarea name="body" rows="4" required></textarea>
+
+    <% if (isAdmin) { %>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:8px;">
+        <label style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" name="send_email" />
+          Enviar correo al cliente
+        </label>
+        <label style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" name="internal_note" />
+          Nota interna (no visible al cliente)
+        </label>
+      </div>
+    <% } %>
+
+    <div style="margin-top:12px">
+      <button class="btn" type="submit">Enviar mensaje</button>
+    </div>
+  </form>
+</div>
+
+<% if (isAdmin) { %>
+  <div class="card">
+    <h3 style="margin-top:0">Administración del ticket</h3>
+    <form method="POST" action="/tickets/<%= ticket.ticket_no %>/status">
+      <label>Actualizar status</label>
+      <select name="status" required>
+        <% statusOptions.forEach(s => { %>
+          <option value="<%= s %>" <%= s === ticket.status ? "selected" : "" %>><%= s %></option>
+        <% }) %>
+      </select>
+      <div style="margin-top:12px">
+        <button class="btn" type="submit">Actualizar status</button>
+      </div>
+    </form>
+
+    <form method="POST" action="/tickets/<%= ticket.ticket_no %>/delete" style="margin-top:12px;">
+      <button class="btn btn-secondary" type="submit">Eliminar ticket</button>
+    </form>
+  </div>
+<% } %>
 
 <%- include("layout_end") %>
