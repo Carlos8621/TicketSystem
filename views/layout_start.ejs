@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title><%= title || "Nombre de la empresa Tickets" %></title>
+
+  <style>
+    :root{
+      --bg:#0f0a1a;
+      --card:#151022;
+      --card2:#1a1330;
+      --text:#f5f3ff;
+      --muted:#c7c3dd;
+      --primary:#7c3aed;
+      --primary2:#a855f7;
+      --line:rgba(255,255,255,.10);
+      --ok:#22c55e;
+      --warn:#f59e0b;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 600px at 15% 10%, rgba(124,58,237,.35), transparent 60%),
+        radial-gradient(900px 500px at 85% 20%, rgba(168,85,247,.25), transparent 55%),
+        radial-gradient(900px 500px at 70% 90%, rgba(124,58,237,.20), transparent 55%),
+        var(--bg);
+      min-height:100vh;
+    }
+
+    .blob1,.blob2{
+      position:fixed; z-index:-1; filter:blur(40px); opacity:.55;
+      border-radius:999px;
+      transform:translateZ(0);
+    }
+    .blob1{ width:260px;height:260px; background:var(--primary); top:80px; left:-90px; }
+    .blob2{ width:320px;height:320px; background:var(--primary2); bottom:-120px; right:-120px; }
+
+    .container{max-width:980px;margin:0 auto;padding:28px 16px 60px}
+
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      padding:16px 18px;border:1px solid var(--line);
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border-radius:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
+      margin-bottom:18px;
+    }
+
+    .brand{display:flex;align-items:center;gap:12px}
+    .mark{
+      width:42px;height:42px;border-radius:12px;
+      background:linear-gradient(135deg, var(--primary), var(--primary2));
+      box-shadow:0 8px 20px rgba(124,58,237,.35);
+    }
+    .brand h1{font-size:18px;margin:0;letter-spacing:.2px}
+    .brand small{display:block;color:var(--muted);margin-top:2px}
+
+    a{color:#d6c7ff;text-decoration:none}
+    a:hover{text-decoration:underline}
+
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.22);
+      margin:12px 0;
+    }
+
+    .btn{
+      appearance:none;border:0;cursor:pointer;
+      display:inline-flex;align-items:center;justify-content:center;gap:8px;
+      background:linear-gradient(135deg, var(--primary), var(--primary2));
+      color:white;font-weight:700;font-size:14px;
+      padding:12px 18px;border-radius:14px;
+      box-shadow:0 10px 22px rgba(124,58,237,.35), inset 0 1px 0 rgba(255,255,255,.15);
+      transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    .btn:hover{
+      filter:brightness(1.08);
+      box-shadow:0 14px 28px rgba(124,58,237,.45), inset 0 1px 0 rgba(255,255,255,.18);
+    }
+    .btn:active{
+      transform:translateY(1px);
+      box-shadow:0 8px 18px rgba(124,58,237,.35), inset 0 2px 6px rgba(0,0,0,.25);
+    }
+
+    .btn-secondary{
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      border:1px solid var(--line);
+      box-shadow:0 8px 18px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.10);
+    }
+    .btn-secondary:hover{
+      filter:none;
+      background:rgba(255,255,255,.10);
+      box-shadow:0 12px 24px rgba(0,0,0,.35);
+    }
+
+    input,select,textarea{
+      width:100%;
+      padding:12px 12px;
+      border-radius:12px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      color:var(--text);
+      outline:none;
+    }
+    input:focus,select:focus,textarea:focus{
+      border-color:rgba(168,85,247,.65);
+      box-shadow:0 0 0 4px rgba(124,58,237,.18);
+    }
+    label{color:var(--muted);font-size:13px}
+
+    .err{
+      background:rgba(239,68,68,.15);
+      border:1px solid rgba(239,68,68,.35);
+      padding:12px;border-radius:12px;
+    }
+
+    table{width:100%;border-collapse:collapse;border-radius:14px;overflow:hidden}
+    th,td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top}
+    th{color:#efeaff;background:rgba(255,255,255,.05);text-align:left}
+    tr:hover td{background:rgba(255,255,255,.03)}
+    small{color:var(--muted)}
+
+    .pill{
+      display:inline-block;padding:6px 10px;border-radius:999px;
+      border:1px solid var(--line); background:rgba(255,255,255,.04);
+      font-size:12px;color:#efeaff;
+    }
+
+    /* select dropdown */
+    select option{ color:#000 !important; background:#fff !important; }
+    select optgroup{ color:#000 !important; background:#fff !important; }
+    select{
+      -webkit-appearance:none; appearance:none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(245,243,255,.85) 50%),
+        linear-gradient(135deg, rgba(245,243,255,.85) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) calc(50% - 3px),
+        calc(100% - 12px) calc(50% - 3px);
+      background-size:6px 6px, 6px 6px;
+      background-repeat:no-repeat;
+      padding-right:40px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="blob1"></div><div class="blob2"></div>
+
+  <div class="container">
+    <div class="topbar">
+      <div class="brand">
+        <div class="mark"></div>
+        <div>
+          <h1>Nombre de la Empresa Tickets</h1>
+          <small>Soporte rápido • Seguimiento en línea</small>
+        </div>
+      </div>
+
+      <div><%- typeof topbarRight !== "undefined" ? topbarRight : "" %></div>
+    </div>

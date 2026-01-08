@@ -1,0 +1,29 @@
+<%- include("layout_start", { title: "Registro" }) %>
+
+<h1>Registro</h1>
+
+<% if (error) { %>
+  <div class="err"><%= error %></div>
+<% } %>
+
+<form method="POST" action="/register" class="card">
+  <label>Nombre del usuario</label>
+  <input name="full_name" required />
+
+  <label>Empresa (opcional)</label>
+  <input name="company" placeholder="Ej. Nombre de la Empresa" />
+
+  <label>Email</label>
+  <input name="email" type="email" required />
+
+  <label>Contraseña</label>
+  <input name="password" type="password" required />
+
+  <div style="margin-top:12px">
+    <button class="btn" type="submit">Crear cuenta</button>
+  </div>
+</form>
+
+<p>¿Ya tienes cuenta? <a href="/login">Inicia sesión</a></p>
+
+<%- include("layout_end") %>

@@ -1,0 +1,27 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Env / secrets
+.env
+.env.*
+
+# Logs
+*.log
+
+# Node
+node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Java / .NET comunes
+target/
+bin/
+obj/

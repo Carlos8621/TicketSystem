@@ -1,0 +1,23 @@
+<%- include("layout_start", { title: "Login" }) %>
+
+<h1>Iniciar sesión</h1>
+
+<% if (error) { %>
+  <div class="err"><%= error %></div>
+<% } %>
+
+<form method="POST" action="/login" class="card">
+  <label>Email</label>
+  <input name="email" type="email" required />
+
+  <label>Contraseña</label>
+  <input name="password" type="password" required />
+
+  <div style="margin-top:12px">
+    <button class="btn" type="submit">Entrar</button>
+  </div>
+</form>
+
+<p>¿No tienes cuenta? <a href="/register">Crear cuenta</a></p>
+
+<%- include("layout_end") %>

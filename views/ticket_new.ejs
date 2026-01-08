@@ -1,0 +1,43 @@
+<%
+  const topbarRight = `
+    <a class="btn btn-secondary" href="/dashboard">Volver</a>
+  `;
+%>
+
+<%- include("layout_start", { title: "Nuevo ticket", topbarRight }) %>
+
+<h1>Nuevo ticket</h1>
+
+<% if (error) { %>
+  <div class="err"><%= error %></div>
+<% } %>
+
+<div class="card">
+  <small>Empresa registrada: <b><%= user.company || "-" %></b></small>
+</div>
+
+<form method="POST" action="/tickets" class="card">
+  <label>Tipo de solicitud</label>
+  <select name="request_type" required>
+    <% requestTypes.forEach(rt => { %>
+      <option value="<%= rt %>"><%= rt %></option>
+    <% }) %>
+  </select>
+
+  <label>Servicio</label>
+  <select name="service" required>
+    <% services.forEach(s => { %>
+      <option value="<%= s %>"><%= s %></option>
+    <% }) %>
+  </select>
+
+  <label>Descripción</label>
+  <textarea name="description" rows="5" required></textarea>
+
+  <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+    <button class="btn" type="submit">Enviar ticket</button>
+    <a class="btn btn-secondary" href="/dashboard">Cancelar</a>
+  </div>
+</form>
+
+<%- include("layout_end") %>

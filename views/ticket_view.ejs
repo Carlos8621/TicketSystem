@@ -1,0 +1,31 @@
+<%
+  const topbarRight = `
+    <a class="btn btn-secondary" href="/dashboard">Volver</a>
+  `;
+%>
+
+<%- include("layout_start", { title: "Ticket " + ticket.ticket_no, topbarRight }) %>
+
+<h1>Ticket <%= ticket.ticket_no %></h1>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+    <div>
+      <small>Empresa: <b><%= ticket.company || "-" %></b></small><br/>
+      <small>Tipo: <b><%= ticket.request_type %></b></small><br/>
+      <small>Servicio: <b><%= ticket.service %></b></small>
+    </div>
+    <div>
+      <span class="pill"><%= ticket.status %></span><br/>
+      <small>Creado: <%= ticket.created_at %></small><br/>
+      <small>Actualizado: <%= ticket.updated_at %></small>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Descripción</h3>
+  <p style="white-space:pre-wrap"><%= ticket.description %></p>
+</div>
+
+<%- include("layout_end") %>

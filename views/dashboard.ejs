@@ -1,0 +1,55 @@
+<%
+  const topbarRight = `
+    <form method="POST" action="/logout" style="margin:0">
+      <button class="btn btn-secondary" type="submit">Cerrar sesión</button>
+    </form>
+  `;
+%>
+
+<%- include("layout_start", { title: "Dashboard", topbarRight }) %>
+
+<div class="card">
+  <h2 style="margin:0 0 6px 0">Mis tickets</h2>
+  <small>Empresa registrada: <b><%= user.company || "-" %></b></small>
+</div>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+    <div>
+      <small>Usuario: <b><%= user.full_name %></b></small><br/>
+      <small>Email: <b><%= user.email %></b></small>
+    </div>
+    <a class="btn" href="/tickets/new">+ Nuevo ticket</a>
+  </div>
+</div>
+
+<div class="card">
+  <% if (!tickets || tickets.length === 0) { %>
+    <p>No tienes tickets aún.</p>
+  <% } else { %>
+    <table>
+      <thead>
+        <tr>
+          <th>Ticket</th>
+          <th>Servicio</th>
+          <th>Tipo</th>
+          <th>Status</th>
+          <th>Creado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% tickets.forEach(t => { %>
+          <tr>
+            <td><a href="/tickets/<%= t.ticket_no %>"><b><%= t.ticket_no %></b></a></td>
+            <td><%= t.service %></td>
+            <td><%= t.request_type %></td>
+            <td><span class="pill"><%= t.status %></span></td>
+            <td><small><%= t.created_at %></small></td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
+
+<%- include("layout_end") %>
