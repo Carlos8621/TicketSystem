@@ -15,6 +15,23 @@ db.serialize(() => {
       created_at TEXT NOT NULL
     )
   `);
+  db.all("PRAGMA table_info(users)", (err, columns) => {
+    if (err) {
+      console.error("Error leyendo esquema de users:", err.message);
+      return;
+    }
+    const hasRole = columns.some((column) => column.name === "role");
+    if (!hasRole) {
+      db.run(
+        "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
+        (alterErr) => {
+          if (alterErr) {
+            console.error("Error agregando columna role:", alterErr.message);
+          }
+        }
+      );
+    }
+  });
 
   // ---------------- TICKETS ----------------
   db.run(`

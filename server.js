@@ -1,7 +1,12 @@
 require("dotenv").config();
 const express = require("express");
 const path = require("path");
-const db = require("./db");
+const dbModule = require("./db");
+const db = dbModule?.run ? dbModule : dbModule?.db;
+
+if (!db || typeof db.run !== "function") {
+  throw new Error("Database module did not export a sqlite3 Database instance.");
+}
 
 // Agrega columna company si no existe (si ya existe, ignoramos el error)
 db.run(`ALTER TABLE users ADD COLUMN company TEXT`, () => {});
